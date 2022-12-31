@@ -1,4 +1,6 @@
-use crate::piece::{Shape, BlockData, ActivePiece, Block, get_random_piece, PieceType, get_piece_roation};
+use std::collections::VecDeque;
+
+use crate::piece::{BlockData, ActivePiece, get_random_piece, PieceType, get_piece_roation};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Position(pub isize, pub isize);
@@ -23,7 +25,9 @@ pub struct Grid {
     array: Vec<Option<BlockData>>,
     pub width: usize,
     pub height: usize,
-    pub active_piece: Option<ActivePiece>
+    pub active_piece: Option<ActivePiece>,
+    pub ghost: Option<ActivePiece>,
+    pub queue: VecDeque<PieceType>
 }
 
 impl Grid {
@@ -32,7 +36,9 @@ impl Grid {
             array: (0..(width * height)).into_iter().map(|_| value).collect(),
             width: width,
             height: height,
-            active_piece: None
+            active_piece: None,
+            ghost: None,
+            queue: VecDeque::from_iter((0..5).map(|_| get_random_piece().1).into_iter())
         };
     }
 
@@ -41,7 +47,7 @@ impl Grid {
     }
 
     pub fn get(&self, Position(x, y): &Position) -> Option<BlockData> {
-        if self.active_piece.is_none() {
+        if self.active_piece.is_none() || self.ghost.is_none() {
             return self.get_from_array(&Position(*x, *y));
         }
 
@@ -51,9 +57,19 @@ impl Grid {
         if x >= &px && x < &(px + 4) && y >= &py && y < &(py + 4) {
             let block = piece.shape.shape[(y - py) as usize][(x - px) as usize];
             if let Some(block) = block {
-                return Some(BlockData { block, placed: false })
+                return Some(BlockData { block, placed: false, ghost: false })
             }
         }
+
+        let ghost = self.ghost.as_ref().unwrap();
+        let Position(px, py) = ghost.position;
+        if x >= &px && x < &(px + 4) && y >= &py && y < &(py + 4) {
+            let block = ghost.shape.shape[(y - py) as usize][(x - px) as usize];
+            if let Some(block) = block {
+                return Some(BlockData { block, placed: false, ghost: true })
+            }
+        }
+
         self.get_from_array(&Position(*x, *y))
     }
 
@@ -75,18 +91,20 @@ impl Grid {
                 if let Some(block) = block {
                     println!("{}, {}", x, y);
                     println!("{}, {}", pos_x, pos_y);
-                    let block_data = BlockData { block: block.to_owned(), placed: true };
+                    let block_data = BlockData { block: block.to_owned(), placed: true, ghost: false };
                     self.set(Position(x as isize + pos_x, y as isize + pos_y), Some(block_data.clone()));
                 }
             }
         }
-        let (shape, piece_type) = get_random_piece();
-        let new_active_piece = ActivePiece::new(piece_type);
+        let new_active_piece = ActivePiece::new(self.pop_queue());
         self.set_active(new_active_piece);
+        self.check_clear();
+        self.update_ghost();
     }
 
     pub fn set_active(&mut self, piece: ActivePiece) {
         self.active_piece = Some(piece);
+        self.update_ghost();
     }
 
     pub fn move_active(&mut self, direction: Direction) {
@@ -112,6 +130,7 @@ impl Grid {
         }
 
         self.active_piece.as_mut().unwrap().position = new_position;
+        self.update_ghost();
     }
 
     pub fn move_active_down(&mut self) {
@@ -130,21 +149,23 @@ impl Grid {
     }
 
     pub fn drop(&mut self) {
-        if self.active_piece.is_none() { return; }
+        let mut pos: Position = Position(0, 0);
+        if let Some(piece) = self.active_piece {
+            pos = self.find_lowest_valid(&piece);
+        }
+        if let Some(piece) = self.active_piece.as_mut() {
+            piece.position = pos;
+        }
+        self.place_active();
+    }
 
+    fn find_lowest_valid(&self, piece: &ActivePiece) -> Position {
+        let mut piece = piece.to_owned();
         loop {
-            if let Some(piece) = self.active_piece.as_mut() {
-                piece.position += Position(0, 1);
-            }
-
-            let piece = self.active_piece.as_ref().unwrap();
+            piece.position += Position(0, 1);
             let is_valid = self.check_valid(&piece);
             if !is_valid {
-                if let Some(piece) = self.active_piece.as_mut() {
-                    piece.position += Position(0, -1);
-                }
-                self.place_active();
-                break;
+                return piece.position + Position(0, -1);
             }
         }
     }
@@ -176,8 +197,11 @@ impl Grid {
         let active_piece = self.active_piece.as_ref().unwrap();
         let rotation = match direction {
             Direction::LEFT => {
-                let rot = (active_piece.rotation + 1) % 4;
-                if rot < 0 { 3 } else { rot }
+                if active_piece.rotation == 0 {
+                    3
+                } else {
+                    (active_piece.rotation - 1) % 4
+                }
             },
             Direction::RIGHT => (active_piece.rotation + 1) % 4,
         };
@@ -197,6 +221,50 @@ impl Grid {
         if let Some(active_piece) = self.active_piece.as_mut() {
             active_piece.shape = shape;
             active_piece.rotation = rotation;
+        }
+        self.update_ghost();
+    }
+
+    fn pop_queue(&mut self) -> PieceType {
+        let piece_type = self.queue.pop_back().unwrap();
+        let (_, new_piece_type) = get_random_piece();
+        self.queue.push_front(new_piece_type);
+        return piece_type;
+    }
+
+    fn check_clear(&mut self) {
+        let mut rows_clear: Vec<usize> = Vec::new();
+        for y in 0..self.height {
+            let line = &self.array[y * self.width .. y * self.width + self.width];
+            let is_full = line.into_iter().all(|v| v.is_some());
+            if is_full {
+                rows_clear.push(y);
+            }
+        }
+        self.clear_rows(&rows_clear);
+    }
+
+    fn clear_rows(&mut self, rows: &Vec<usize>) {
+        for y in rows {
+            
+            for row in (1..=*y).rev() {
+                let line = self.array[(row - 1) * self.width .. (row - 1) * self.width + self.width].to_owned();
+                for x in 0..self.width {
+                    self.set(Position(x as isize, row as isize), line[x]);
+                }
+            }
+        }
+    }
+
+    fn update_ghost(&mut self) {
+        if let Some(piece) = self.active_piece {
+            let pos = self.find_lowest_valid(&piece);
+            
+            let ghost = ActivePiece {
+                position: pos,
+                ..piece.clone()
+            };
+            self.ghost = Some(ghost);
         }
     }
 }

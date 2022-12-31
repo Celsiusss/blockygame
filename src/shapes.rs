@@ -1,14 +1,44 @@
-use sdl2::pixels::Color;
+use sdl2::pixels::{Color as C};
 
 use crate::{piece::{Shape, Block}, grid::Position};
 
-static L_BLOCK: Block = Block {color: Color::RED};
-static J_BLOCK: Block = Block {color: Color::YELLOW};
-static S_BLOCK: Block = Block {color: Color::GREEN};
-static Z_BLOCK: Block = Block {color: Color::MAGENTA};
-static I_BLOCK: Block = Block {color: Color::BLUE};
-static O_BLOCK: Block = Block {color: Color::WHITE};
-static T_BLOCK: Block = Block {color: Color::CYAN};
+#[derive(Clone, Copy, Debug)]
+pub struct Color {
+    rgb: (u8, u8, u8)
+}
+impl Color {
+    pub const fn new(r: u8, g: u8, b: u8) -> Self {
+        Color { rgb: (r, g, b) }
+    }
+    pub const fn to_sdl_color(&self) -> C {
+        C::RGB(self.rgb.0, self.rgb.1, self.rgb.2)
+    }
+    pub fn mult(&self, value: f32) -> Self {
+        Color {
+            rgb: (
+                (self.rgb.0 as f32 * value).clamp(0.0, 256.0) as u8,
+                (self.rgb.1 as f32 * value).clamp(0.0, 256.0) as u8,
+                (self.rgb.2 as f32 * value).clamp(0.0, 256.0) as u8,
+            )
+        }
+    }
+}
+
+static RED: Color = Color::new(200, 0, 0);
+static YELLOW: Color = Color::new(0, 200, 200);
+static GREEN: Color = Color::new(0, 200, 0);
+static MAGENTA: Color = Color::new(100, 0, 200);
+static BLUE: Color = Color::new(0, 0, 200);
+static WHITE: Color = Color::new(200, 200, 200);
+static CYAN: Color = Color::new(0, 100, 200);
+
+static L_BLOCK: Block = Block {color: RED };
+static J_BLOCK: Block = Block {color: YELLOW};
+static S_BLOCK: Block = Block {color: GREEN };
+static Z_BLOCK: Block = Block {color: MAGENTA };
+static I_BLOCK: Block = Block {color: BLUE };
+static O_BLOCK: Block = Block {color: WHITE };
+static T_BLOCK: Block = Block {color: CYAN };
 
 pub type ShapeRotations = [Shape; 4];
 

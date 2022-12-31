@@ -57,14 +57,14 @@ pub struct Shape {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Block {
-    pub color: Color,
+    pub color: crate::shapes::Color,
 }
 
 #[derive(Clone, Copy, Debug)]
 pub struct BlockData {
     pub block: Block,
     pub placed: bool,
-    
+    pub ghost: bool
 }
 
 

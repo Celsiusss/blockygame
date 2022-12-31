@@ -1,15 +1,14 @@
-
 mod grid;
 mod piece;
 mod render;
 mod game;
 mod shapes;
+mod input;
 
 use game::Game;
-use grid::{Position};
 use piece::get_random_piece;
 use render::render;
-use sdl2::{event::Event, keyboard::Keycode};
+use sdl2::{event::Event, keyboard::Keycode, rect::Rect, pixels::Color};
 use time::Duration;
 
 fn main() -> Result<(), String> {
@@ -24,11 +23,10 @@ fn main() -> Result<(), String> {
 
     let mut canvas = window.into_canvas().build().unwrap();
 
-
-    
+    let ttf = sdl2::ttf::init().unwrap();
+    // res.unwrap().fill_rect(Rect::new(0, 0, 100, 100), sdl2::pixels::Color::YELLOW)?;
 
     let mut event_pump = context.event_pump().unwrap();
-    let mut i = 0;
 
     let mut fps_manager = sdl2::gfx::framerate::FPSManager::new();
     fps_manager.set_framerate(60)?;
@@ -37,8 +35,12 @@ fn main() -> Result<(), String> {
     let mut delta: Duration = Duration::new(0, 0);
     
     let mut timer = Duration::new(0, 0);
+
+    let text_rect = Rect::new(0, 0, 100, 100);
     
     'running: loop {
+        
+        
         for event in event_pump.poll_iter() {
             game.handle_event(&event);
             match event {
