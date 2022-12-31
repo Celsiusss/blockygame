@@ -27,7 +27,8 @@ pub struct Grid {
     pub height: usize,
     pub active_piece: Option<ActivePiece>,
     pub ghost: Option<ActivePiece>,
-    pub queue: VecDeque<PieceType>
+    pub queue: VecDeque<PieceType>,
+    pub score: isize
 }
 
 impl Grid {
@@ -38,7 +39,8 @@ impl Grid {
             height: height,
             active_piece: None,
             ghost: None,
-            queue: VecDeque::from_iter((0..5).map(|_| get_random_piece().1).into_iter())
+            queue: VecDeque::from_iter((0..5).map(|_| get_random_piece().1).into_iter()),
+            score: 0
         };
     }
 
@@ -89,8 +91,6 @@ impl Grid {
         for (y, row) in piece.shape.shape.iter().enumerate() {
             for (x, block) in row.iter().enumerate() {
                 if let Some(block) = block {
-                    println!("{}, {}", x, y);
-                    println!("{}, {}", pos_x, pos_y);
                     let block_data = BlockData { block: block.to_owned(), placed: true, ghost: false };
                     self.set(Position(x as isize + pos_x, y as isize + pos_y), Some(block_data.clone()));
                 }
@@ -103,6 +103,8 @@ impl Grid {
     }
 
     pub fn set_active(&mut self, piece: ActivePiece) {
+        let mut piece = piece;
+        piece.position = Position(3, 0);
         self.active_piece = Some(piece);
         self.update_ghost();
     }
@@ -245,6 +247,7 @@ impl Grid {
     }
 
     fn clear_rows(&mut self, rows: &Vec<usize>) {
+        self.update_score(rows.len());
         for y in rows {
             
             for row in (1..=*y).rev() {
@@ -254,6 +257,17 @@ impl Grid {
                 }
             }
         }
+    }
+
+    fn update_score(&mut self, lines: usize) {
+        let score = match lines {
+            1 => 100,
+            2 => 300,
+            3 => 500,
+            4 => 1000,
+            _ => 0
+        };
+        self.score += score;
     }
 
     fn update_ghost(&mut self) {

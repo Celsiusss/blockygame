@@ -67,6 +67,9 @@ impl InputHandler {
             Keycode::J => {
                 grid.rotate(Direction::LEFT);
             }
+            Keycode::S => {
+                grid.move_active_down();
+            }
             _ => {}
         }
     }

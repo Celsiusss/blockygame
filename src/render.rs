@@ -4,12 +4,13 @@ use crate::piece::{BlockData, get_default_piece, PieceType};
 
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
-use sdl2::render::Canvas;
-use sdl2::video::Window;
+use sdl2::render::{Canvas, Texture, TextureCreator};
+use sdl2::ttf::{Font, Sdl2TtfContext};
+use sdl2::video::{Window, WindowContext};
 
 static SCALE: u32 = 30;
 
-pub fn render(game: &Game, canvas: &mut Canvas<Window>) -> Result<(), String> {
+pub fn render(game: &Game, canvas: &mut Canvas<Window>, texture_creator: &TextureCreator<WindowContext>, font: &Font) -> Result<(), String> {
     canvas.set_draw_color(Color::RGB(0, 0, 0));
     canvas.clear();
     canvas.set_draw_color(Color::RGB(255, 255, 255));
@@ -26,9 +27,27 @@ pub fn render(game: &Game, canvas: &mut Canvas<Window>) -> Result<(), String> {
     }
 
     render_preview(game, canvas)?;
+    render_text(game, canvas, texture_creator, font)?;
+
+
     canvas.present();
 
     return Ok(());
+}
+
+pub fn render_text(game: &Game, canvas: &mut Canvas<Window>, texture_creator: &TextureCreator<WindowContext>, font: &Font) -> Result<(), String> {
+    let surface = font.render(format!("Score: {}", game.grid.score).as_str()).blended(Color::WHITE).unwrap();
+    let texture = texture_creator.create_texture_from_surface(surface).unwrap();
+    
+    let query = texture.query();
+    let rect = Rect::new(
+        game.grid.width as i32 * SCALE as i32 + 1 * SCALE as i32,
+        SCALE as i32 * 10,
+        query.width, query.height
+    );
+    canvas.copy(&texture, None, rect)?;
+
+    Ok(())
 }
 
 fn render_preview(game: &Game, canvas: &mut Canvas<Window>) -> Result<(), String> {

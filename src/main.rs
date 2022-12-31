@@ -8,7 +8,7 @@ mod input;
 use game::Game;
 use piece::get_random_piece;
 use render::render;
-use sdl2::{event::Event, keyboard::Keycode, rect::Rect, pixels::Color};
+use sdl2::{event::Event, keyboard::Keycode};
 use time::Duration;
 
 fn main() -> Result<(), String> {
@@ -23,23 +23,23 @@ fn main() -> Result<(), String> {
 
     let mut canvas = window.into_canvas().build().unwrap();
 
-    let ttf = sdl2::ttf::init().unwrap();
-    // res.unwrap().fill_rect(Rect::new(0, 0, 100, 100), sdl2::pixels::Color::YELLOW)?;
-
     let mut event_pump = context.event_pump().unwrap();
 
     let mut fps_manager = sdl2::gfx::framerate::FPSManager::new();
-    fps_manager.set_framerate(60)?;
+    fps_manager.set_framerate(165)?;
 
     let mut time = time::OffsetDateTime::now_utc();
     let mut delta: Duration = Duration::new(0, 0);
     
     let mut timer = Duration::new(0, 0);
 
-    let text_rect = Rect::new(0, 0, 100, 100);
+    let ttf_context = sdl2::ttf::init().unwrap();    
+    let font = ttf_context.load_font("Inconsolata-Medium.ttf", 26)?;
+    let texture_creator = canvas.texture_creator();
+    
+    
     
     'running: loop {
-        
         
         for event in event_pump.poll_iter() {
             game.handle_event(&event);
@@ -52,8 +52,7 @@ fn main() -> Result<(), String> {
             }
         }
         game.input_update(time - delta);
-        render(&game, &mut canvas)?;
-        //std::thread::sleep(time::Duration::from_millis(1));
+        render(&game, &mut canvas, &texture_creator, &font)?;
         fps_manager.delay();
 
         delta = time::OffsetDateTime::now_utc() - time;
